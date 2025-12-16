@@ -35,3 +35,26 @@ def gauss_smooth(inputs, device, smooth_kernel_std=2, smooth_kernel_size=100,  p
     # Perform convolution
     smoothed = F.conv1d(inputs, gaussKernel, padding=padding, groups=C)
     return smoothed.permute(0, 2, 1)  # [B, T, C]
+
+
+#TEAM COLOMBIA - usually neural data is noisy and incomplete so in order to simulate those conditions we apply termporal masking, which can also prevent overfitting.
+#Temporal Masking = Randomly hiding short chunks of the neural signal along the time axis during training.
+def temporal_mask(x, max_mask_frac=0.15):
+    if x.ndim != 2:
+        raise ValueError(f"Expected input shape (T, F), got {x.shape}")
+
+    T, F = x.shape
+
+    # Sample mask length
+    mask_len = int(np.random.uniform(0.0, max_mask_frac) * T)
+    if mask_len == 0:
+        return x
+
+    # Sample start index
+    start = np.random.randint(0, T - mask_len + 1)
+
+    # Apply mask
+    x_masked = x.copy()
+    x_masked[start:start + mask_len, :] = 0.0
+
+    return x_masked

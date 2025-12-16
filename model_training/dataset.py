@@ -5,7 +5,7 @@ import h5py
 import numpy as np
 from torch.nn.utils.rnn import pad_sequence
 import math 
-
+from model_training.data_augmentations import temporal_mask
 class BrainToTextDataset(Dataset):
     '''
     Dataset for brain-to-text data
@@ -127,7 +127,18 @@ class BrainToTextDataset(Dataset):
                         g = f[f'trial_{t:04d}']
 
                         # Remove features is neccessary 
-                        input_features = torch.from_numpy(g['input_features'][:]) # neural data
+                        #TEAM COLOMBIA
+                        input_features = g['input_features'][:]
+                        if self.split == 'train':
+                            print("Applying Temporal Mask")
+                            input_features = temporal_mask(input_features)
+
+                        # Remove features is neccessary 
+                        input_features = torch.from_numpy(input_features) # neural data
+                        #/TEAM COLOMBIA
+
+                        #for preliminary eda uncomment the line below and comet out the segment of team colombia above
+                        #input_features = torch.from_numpy(g['input_features'][:]) # neural data
                         if self.feature_subset:
                             input_features = input_features[:,self.feature_subset]
 
