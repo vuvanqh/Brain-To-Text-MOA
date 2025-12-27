@@ -130,7 +130,6 @@ class BrainToTextDataset(Dataset):
                         #TEAM COLOMBIA
                         input_features = g['input_features'][:]
                         if self.split == 'train':
-                            print("Applying Temporal Mask")
                             input_features = temporal_mask(input_features)
 
                         # Remove features is neccessary 
