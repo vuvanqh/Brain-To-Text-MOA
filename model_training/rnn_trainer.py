@@ -149,9 +149,9 @@ class BrainToTextDecoder_Trainer:
         else:
             raise ValueError(f"Unknown model type: {self.args['model']['type']}")
 
-        # Call torch.compile to speed up training
+        # Call torch.compile to speed up training EDITED COMPILATION FOR SPEED
         self.logger.info("Using torch.compile")
-        self.model = torch.compile(self.model)
+        #self.model = torch.compile(self.model)
 
         #EDITED
         #self.logger.info(f"Initialized RNN decoding model")
