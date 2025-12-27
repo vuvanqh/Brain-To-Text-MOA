@@ -200,10 +200,19 @@ class BrainToTextDataset(Dataset):
             num_trials = math.ceil(self.batch_size / self.days_per_batch) # Use ceiling to make sure we get at least batch_size trials
 
             for d in days:
+                trials = self.trial_indicies[d]['trials']
 
-                # Trials are sampled with replacement, so if a day has less than (self.batch_size / days_per_batch trials) trials, it won't be a problem
-                trial_idxs = np.random.choice(self.trial_indicies[d]['trials'], size = num_trials, replace = True)
+                # Skip days with no trials
+                if len(trials) == 0:
+                    continue
+
+                trial_idxs = np.random.choice(
+                    trials,
+                    size=num_trials,
+                    replace=True
+                )
                 batch[d] = trial_idxs
+
 
             # Remove extra trials
             extra_trials = (num_trials * len(days)) - self.batch_size
