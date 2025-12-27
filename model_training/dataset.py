@@ -181,7 +181,8 @@ class BrainToTextDataset(Dataset):
         if self.must_include_days is not None:
             non_must_include_days = [d for d in self.trial_indicies.keys() if d not in self.must_include_days]
 
-        for batch_idx in range(self.n_batches):
+        batch_idx = 0
+        while batch_idx < self.n_batches:
             batch = {}
 
             # Which days will be used for this batch. Picked randomly without replacement
@@ -212,6 +213,8 @@ class BrainToTextDataset(Dataset):
                     replace=True
                 )
                 batch[d] = trial_idxs
+                if len(batch) == 0:
+                    continue
 
 
             # Remove extra trials
@@ -223,7 +226,11 @@ class BrainToTextDataset(Dataset):
                 batch[d] = batch[d][:-1]
                 extra_trials -= 1
 
-            batch_index[batch_idx] = batch
+            #EDITED
+            #batch_index[batch_idx] = batch
+            if len(batch) > 0:
+                batch_index[batch_idx] = batch
+                batch_idx += 1
 
         return batch_index
     
