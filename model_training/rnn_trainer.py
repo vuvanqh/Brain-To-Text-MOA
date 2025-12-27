@@ -364,41 +364,64 @@ class BrainToTextDecoder_Trainer:
             # After cosine decay is complete, maintain min_lr_ratio
             return min_lr_ratio
 
+        # EDITED
+        # if len(optim.param_groups) == 3:
+        #     lr_lambdas = [
+        #         lambda step: lr_lambda(
+        #             step, 
+        #             lr_min / lr_max, 
+        #             lr_decay_steps, 
+        #             lr_warmup_steps), # biases 
+        #         lambda step: lr_lambda(
+        #             step, 
+        #             lr_min_day / lr_max_day, 
+        #             lr_decay_steps_day,
+        #             lr_warmup_steps_day, 
+        #             ), # day params
+        #         lambda step: lr_lambda(
+        #             step, 
+        #             lr_min / lr_max, 
+        #             lr_decay_steps, 
+        #             lr_warmup_steps), # rest of model weights
+        #     ]
+        # elif len(optim.param_groups) == 2:
+        #     lr_lambdas = [
+        #         lambda step: lr_lambda(
+        #             step, 
+        #             lr_min / lr_max, 
+        #             lr_decay_steps, 
+        #             lr_warmup_steps), # biases 
+        #         lambda step: lr_lambda(
+        #             step, 
+        #             lr_min / lr_max, 
+        #             lr_decay_steps, 
+        #             lr_warmup_steps), # rest of model weights
+        #     ]
+        # else:
+        #     raise ValueError(f"Invalid number of param groups in optimizer: {len(optim.param_groups)}")
         if len(optim.param_groups) == 3:
             lr_lambdas = [
-                lambda step: lr_lambda(
-                    step, 
-                    lr_min / lr_max, 
-                    lr_decay_steps, 
-                    lr_warmup_steps), # biases 
-                lambda step: lr_lambda(
-                    step, 
-                    lr_min_day / lr_max_day, 
-                    lr_decay_steps_day,
-                    lr_warmup_steps_day, 
-                    ), # day params
-                lambda step: lr_lambda(
-                    step, 
-                    lr_min / lr_max, 
-                    lr_decay_steps, 
-                    lr_warmup_steps), # rest of model weights
+                lambda step: lr_lambda(step, lr_min / lr_max, lr_decay_steps, lr_warmup_steps),  # bias
+                lambda step: lr_lambda(step, lr_min_day / lr_max_day, lr_decay_steps_day, lr_warmup_steps_day),  # day
+                lambda step: lr_lambda(step, lr_min / lr_max, lr_decay_steps, lr_warmup_steps),  # rest
             ]
+
         elif len(optim.param_groups) == 2:
             lr_lambdas = [
-                lambda step: lr_lambda(
-                    step, 
-                    lr_min / lr_max, 
-                    lr_decay_steps, 
-                    lr_warmup_steps), # biases 
-                lambda step: lr_lambda(
-                    step, 
-                    lr_min / lr_max, 
-                    lr_decay_steps, 
-                    lr_warmup_steps), # rest of model weights
+                lambda step: lr_lambda(step, lr_min / lr_max, lr_decay_steps, lr_warmup_steps),
+                lambda step: lr_lambda(step, lr_min / lr_max, lr_decay_steps, lr_warmup_steps),
             ]
+
+        elif len(optim.param_groups) == 1:
+            # Transformer case
+            lr_lambdas = [
+                lambda step: lr_lambda(step, lr_min / lr_max, lr_decay_steps, lr_warmup_steps)
+            ]
+
         else:
-            raise ValueError(f"Invalid number of param groups in optimizer: {len(optim.param_groups)}")
-        
+            raise ValueError(
+                f"Invalid number of param groups in optimizer: {len(optim.param_groups)}"
+            )
         return LambdaLR(optim, lr_lambdas, -1)
         
     def load_model_checkpoint(self, load_path):
