@@ -13,7 +13,7 @@ import json
 import pickle
 
 from dataset import BrainToTextDataset, train_test_split_indicies
-from data_augmentations import gauss_smooth, temporal_mask_gpu
+from data_augmentations import gauss_smooth, temporal_mask
 
 import torchaudio.functional as F # for edit distance
 from omegaconf import OmegaConf
@@ -568,7 +568,7 @@ class BrainToTextDecoder_Trainer:
                 # Apply augmentations to the data
                 features, n_time_steps = self.transform_data(features, n_time_steps, 'train')
                 if self.args['model']['type'] == 'transformer':
-                    features = temporal_mask_gpu(features, max_mask_frac=0.15)
+                    features = temporal_mask(features, max_mask_frac=0.15)
 
                 adjusted_lens = ((n_time_steps - self.args['model']['patch_size']) / self.args['model']['patch_stride'] + 1).to(torch.int32)
 
