@@ -12,8 +12,9 @@ import argparse
 from transformer_model import BrainToTextTransformer
 from evaluate_model_helpers import *
 
-import torch.distributed.checkpoint as dcp
-from torch.distributed.checkpoint import FileSystemReader
+from torch.distributed._shard.checkpoint import load as dcp_load
+from torch.distributed._shard.checkpoint import FileSystemReader
+
 
 
 # model.load_state_dict(state["model"])
@@ -82,7 +83,7 @@ ckpt_dir = os.path.join(
 
 state = {}
 
-dcp.load(
+dcp_load(
     state_dict=state,
     storage_reader=FileSystemReader(ckpt_dir),
 )
