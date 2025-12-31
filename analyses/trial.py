@@ -50,8 +50,8 @@ cmd2 = (
     "python model_training/evaluate_model.py "
     "--gpu_number 0 "
     "--model_path /kaggle/input/trained_models/transformer_v1 "
-    "--data_dir /kaggle/input/trained_models/t15_copyTask_neuralData/hdf5_data_final"
-    "--eval_type val"
+    "--data_dir /kaggle/input/trained_models/t15_copyTask_neuralData/hdf5_data_final "
+    "--eval_type val "
     "--csv_path data/t15_copyTaskData_description.csv"
 )
 
