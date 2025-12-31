@@ -12,6 +12,12 @@ import argparse
 from transformer_model import BrainToTextTransformer
 from evaluate_model_helpers import *
 
+import torch.distributed.checkpoint as dcp
+from torch.distributed.checkpoint import FileSystemReader
+
+
+# model.load_state_dict(state["model"])
+
 # argument parser for command line arguments
 parser = argparse.ArgumentParser(description='Evaluate a pretrained RNN model on the copy task dataset.')
 parser.add_argument('--model_path', type=str, default='./data/t15_pretrained_rnn_baseline',
@@ -66,6 +72,23 @@ model = BrainToTextTransformer(
     dropout = model_args['model']['dropout'],
 )
 
+model.to(device)
+
+ckpt_dir = os.path.join(
+    model_path,
+    "checkpoint",
+    "best_checkpoint"
+)
+
+state = {}
+
+dcp.load(
+    state_dict=state,
+    storage_reader=FileSystemReader(ckpt_dir),
+)
+
+model.load_state_dict(state["model"])
+
 # model = GRUDecoder(
 #     neural_dim = model_args['model']['n_input_features'],
 #     n_units = model_args['model']['n_units'], 
@@ -78,13 +101,14 @@ model = BrainToTextTransformer(
 #     patch_stride = model_args['model']['patch_stride'],
 # )
 
-# load model weights
-checkpoint = torch.load(os.path.join(model_path, 'checkpoint/best_checkpoint'), weights_only=False, map_location=device)
+# load model weights MARCIN
+# checkpoint = torch.load(os.path.join(model_path, 'checkpoint/best_checkpoint'), weights_only=False, map_location=device)
+
 # rename keys to not start with "module." (happens if model was saved with DataParallel)
-for key in list(checkpoint['model_state_dict'].keys()):
-    checkpoint['model_state_dict'][key.replace("module.", "")] = checkpoint['model_state_dict'].pop(key)
-    checkpoint['model_state_dict'][key.replace("_orig_mod.", "")] = checkpoint['model_state_dict'].pop(key)
-model.load_state_dict(checkpoint['model_state_dict'])  
+# for key in list(checkpoint['model_state_dict'].keys()):
+#     checkpoint['model_state_dict'][key.replace("module.", "")] = checkpoint['model_state_dict'].pop(key)
+#     checkpoint['model_state_dict'][key.replace("_orig_mod.", "")] = checkpoint['model_state_dict'].pop(key)
+# model.load_state_dict(checkpoint['model_state_dict'])  
 
 # add model to device
 model.to(device) 
