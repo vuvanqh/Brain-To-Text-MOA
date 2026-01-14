@@ -90,16 +90,16 @@ model.to(device)
 
 # model.load_state_dict(state["model"])
 
-import pickle
-
 ckpt_dir = os.path.join(
     model_path,
     "checkpoint",
     "best_checkpoint"
 )
 
-with open(os.path.join(ckpt_dir, "data.pkl"), "rb") as f:
-    state = pickle.load(f)
+state = torch.load(
+    os.path.join(ckpt_dir, "data.pkl"),
+    map_location="cpu"
+)
 
 # state is a dict with keys like:
 #  - "model"
