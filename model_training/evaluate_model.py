@@ -12,8 +12,8 @@ import argparse
 from transformer_model import BrainToTextTransformer
 from evaluate_model_helpers import *
 
-from torch.distributed._shard.checkpoint import load as dcp_load
-from torch.distributed._shard.checkpoint import FileSystemReader
+# from torch.distributed._shard.checkpoint import load as dcp_load
+# from torch.distributed._shard.checkpoint import FileSystemReader
 
 
 
