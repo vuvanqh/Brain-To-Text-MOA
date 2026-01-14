@@ -12,8 +12,8 @@ import argparse
 from transformer_model import BrainToTextTransformer
 from evaluate_model_helpers import *
 
-# from torch.distributed._shard.checkpoint import load as dcp_load
-# from torch.distributed._shard.checkpoint import FileSystemReader
+from torch.distributed._shard.checkpoint import load as dcp_load
+from torch.distributed._shard.checkpoint import FileSystemReader
 
 
 
@@ -75,46 +75,20 @@ model = BrainToTextTransformer(
 
 model.to(device)
 
-# ckpt_dir = os.path.join(
-#     model_path,
-#     "checkpoint",
-#     "best_checkpoint"
-# )
-
-# state = {}
-
-# dcp_load(
-#     state_dict=state,
-#     storage_reader=FileSystemReader(ckpt_dir),
-# )
-
-# model.load_state_dict(state["model"])
-
 ckpt_dir = os.path.join(
     model_path,
     "checkpoint",
     "best_checkpoint"
 )
 
-state = torch.load(
-    os.path.join(ckpt_dir, "data.pkl"),
-    map_location="cpu"
+state = {}
+
+dcp_load(
+    state_dict=state,
+    storage_reader=FileSystemReader(ckpt_dir),
 )
 
-# state is a dict with keys like:
-#  - "model"
-#  - "optimizer"
-#  - etc.
-
-state_dict = state["model"]
-
-# Clean possible prefixes
-clean_state = {}
-for k, v in state_dict.items():
-    k = k.replace("module.", "").replace("_orig_mod.", "")
-    clean_state[k] = v
-
-model.load_state_dict(clean_state)
+model.load_state_dict(state["model"])
 
 # model = GRUDecoder(
 #     neural_dim = model_args['model']['n_input_features'],
@@ -219,215 +193,191 @@ for session, data in test_data.items():
 
 # language model inference via redis
 # make sure that the standalone language model is running on the localhost redis ip
-# # see README.md for instructions on how to run the language model
-# r = redis.Redis(host='localhost', port=6379, db=0)
-# r.flushall()  # clear all streams in redis
+# see README.md for instructions on how to run the language model
+r = redis.Redis(host='localhost', port=6379, db=0)
+r.flushall()  # clear all streams in redis
 
-# # define redis streams for the remote language model
-# remote_lm_input_stream = 'remote_lm_input'
-# remote_lm_output_partial_stream = 'remote_lm_output_partial'
-# remote_lm_output_final_stream = 'remote_lm_output_final'
+# define redis streams for the remote language model
+remote_lm_input_stream = 'remote_lm_input'
+remote_lm_output_partial_stream = 'remote_lm_output_partial'
+remote_lm_output_final_stream = 'remote_lm_output_final'
 
-# # set timestamps for last entries seen in the redis streams
-# remote_lm_output_partial_lastEntrySeen = get_current_redis_time_ms(r)
-# remote_lm_output_final_lastEntrySeen = get_current_redis_time_ms(r)
-# remote_lm_done_resetting_lastEntrySeen = get_current_redis_time_ms(r)
-# remote_lm_done_finalizing_lastEntrySeen = get_current_redis_time_ms(r)
-# remote_lm_done_updating_lastEntrySeen = get_current_redis_time_ms(r)
+# set timestamps for last entries seen in the redis streams
+remote_lm_output_partial_lastEntrySeen = get_current_redis_time_ms(r)
+remote_lm_output_final_lastEntrySeen = get_current_redis_time_ms(r)
+remote_lm_done_resetting_lastEntrySeen = get_current_redis_time_ms(r)
+remote_lm_done_finalizing_lastEntrySeen = get_current_redis_time_ms(r)
+remote_lm_done_updating_lastEntrySeen = get_current_redis_time_ms(r)
 
-# lm_results = {
-#     'session': [],
-#     'block': [],
-#     'trial': [],
-#     'corpus': [],
-#     'true_phonemes': [],
-#     'pred_phonemes': [],
-#     'true_sentence': [],
-#     'pred_sentence': [],
-# }
+lm_results = {
+    'session': [],
+    'block': [],
+    'trial': [],
+    'corpus': [],
+    'true_phonemes': [],
+    'pred_phonemes': [],
+    'true_sentence': [],
+    'pred_sentence': [],
+}
 
-# # loop through all trials and put logits into the remote language model to get text predictions
-# # note: this takes ~15-20 minutes to run on the entire test split with the 5-gram LM + OPT rescoring (RTX 4090)
-# with tqdm(total=total_test_trials, desc='Running remote language model', unit='trial') as pbar:
-#     for session in test_data.keys():
-#         for trial in range(len(test_data[session]['logits'])):
-#             # get trial logits and rearrange them for the LM
-#             logits = rearrange_speech_logits_pt(test_data[session]['logits'][trial])[0]
+# loop through all trials and put logits into the remote language model to get text predictions
+# note: this takes ~15-20 minutes to run on the entire test split with the 5-gram LM + OPT rescoring (RTX 4090)
+with tqdm(total=total_test_trials, desc='Running remote language model', unit='trial') as pbar:
+    for session in test_data.keys():
+        for trial in range(len(test_data[session]['logits'])):
+            # get trial logits and rearrange them for the LM
+            logits = rearrange_speech_logits_pt(test_data[session]['logits'][trial])[0]
 
-#             # reset language model
-#             remote_lm_done_resetting_lastEntrySeen = reset_remote_language_model(r, remote_lm_done_resetting_lastEntrySeen)
+            # reset language model
+            remote_lm_done_resetting_lastEntrySeen = reset_remote_language_model(r, remote_lm_done_resetting_lastEntrySeen)
             
-#             '''
-#             # update language model parameters
-#             remote_lm_done_updating_lastEntrySeen = update_remote_lm_params(
-#                 r,
-#                 remote_lm_done_updating_lastEntrySeen,
-#                 acoustic_scale=0.35,
-#                 blank_penalty=90.0,
-#                 alpha=0.55,
-#             )
-#             '''
+            '''
+            # update language model parameters
+            remote_lm_done_updating_lastEntrySeen = update_remote_lm_params(
+                r,
+                remote_lm_done_updating_lastEntrySeen,
+                acoustic_scale=0.35,
+                blank_penalty=90.0,
+                alpha=0.55,
+            )
+            '''
 
-#             # put logits into LM
-#             remote_lm_output_partial_lastEntrySeen, decoded = send_logits_to_remote_lm(
-#                 r,
-#                 remote_lm_input_stream,
-#                 remote_lm_output_partial_stream,
-#                 remote_lm_output_partial_lastEntrySeen,
-#                 logits,
-#             )
+            # put logits into LM
+            remote_lm_output_partial_lastEntrySeen, decoded = send_logits_to_remote_lm(
+                r,
+                remote_lm_input_stream,
+                remote_lm_output_partial_stream,
+                remote_lm_output_partial_lastEntrySeen,
+                logits,
+            )
 
-#             # finalize remote LM
-#             remote_lm_output_final_lastEntrySeen, lm_out = finalize_remote_lm(
-#                 r,
-#                 remote_lm_output_final_stream,
-#                 remote_lm_output_final_lastEntrySeen,
-#             )
+            # finalize remote LM
+            remote_lm_output_final_lastEntrySeen, lm_out = finalize_remote_lm(
+                r,
+                remote_lm_output_final_stream,
+                remote_lm_output_final_lastEntrySeen,
+            )
 
-#             # get the best candidate sentence
-#             best_candidate_sentence = lm_out['candidate_sentences'][0]
+            # get the best candidate sentence
+            best_candidate_sentence = lm_out['candidate_sentences'][0]
 
-#             # store results
-#             lm_results['session'].append(session)
-#             lm_results['block'].append(test_data[session]['block_num'][trial])
-#             lm_results['trial'].append(test_data[session]['trial_num'][trial])
-#             lm_results['corpus'].append(test_data[session]['corpus'][trial])
+            # store results
+            lm_results['session'].append(session)
+            lm_results['block'].append(test_data[session]['block_num'][trial])
+            lm_results['trial'].append(test_data[session]['trial_num'][trial])
+            lm_results['corpus'].append(test_data[session]['corpus'][trial])
             
-#             # store phonemes
-#             lm_results['pred_phonemes'].append(" ".join(test_data[session]['pred_seq'][trial]))
-#             if eval_type == 'val':
-#                 true_seq = test_data[session]['seq_class_ids'][trial][0:test_data[session]['seq_len'][trial]]
-#                 true_seq = [LOGIT_TO_PHONEME[p] for p in true_seq]
-#                 lm_results['true_phonemes'].append(" ".join(true_seq))
-#                 lm_results['true_sentence'].append(test_data[session]['sentence_label'][trial])
-#             else:
-#                 lm_results['true_phonemes'].append(None)
-#                 lm_results['true_sentence'].append(None)
+            # store phonemes
+            lm_results['pred_phonemes'].append(" ".join(test_data[session]['pred_seq'][trial]))
+            if eval_type == 'val':
+                true_seq = test_data[session]['seq_class_ids'][trial][0:test_data[session]['seq_len'][trial]]
+                true_seq = [LOGIT_TO_PHONEME[p] for p in true_seq]
+                lm_results['true_phonemes'].append(" ".join(true_seq))
+                lm_results['true_sentence'].append(test_data[session]['sentence_label'][trial])
+            else:
+                lm_results['true_phonemes'].append(None)
+                lm_results['true_sentence'].append(None)
                 
-#             lm_results['pred_sentence'].append(best_candidate_sentence)
+            lm_results['pred_sentence'].append(best_candidate_sentence)
 
-#             # update progress bar
-#             pbar.update(1)
-#             if trial % 10 == 0:
-#                 print(f"⏳ LM progress: {trial}/{total_test_trials}")
-# pbar.close()
-# print("\n🎉 Language model inference completed for all trials.")
+            # update progress bar
+            pbar.update(1)
+            if trial % 10 == 0:
+                print(f"⏳ LM progress: {trial}/{total_test_trials}")
+pbar.close()
+print("\n🎉 Language model inference completed for all trials.")
 
-# # if using the validation set, lets calculate the aggregate word error rate (WER)
-# if eval_type == 'val':
-#     total_true_length = 0
-#     total_edit_distance = 0
+# if using the validation set, lets calculate the aggregate word error rate (WER)
+if eval_type == 'val':
+    total_true_length = 0
+    total_edit_distance = 0
 
-#     lm_results['edit_distance'] = []
-#     lm_results['num_words'] = []
+    lm_results['edit_distance'] = []
+    lm_results['num_words'] = []
 
-#     for i in range(len(lm_results['pred_sentence'])):
-#         true_sentence = remove_punctuation(lm_results['true_sentence'][i]).strip()
-#         pred_sentence = remove_punctuation(lm_results['pred_sentence'][i]).strip()
-#         ed = editdistance.eval(true_sentence.split(), pred_sentence.split())
+    for i in range(len(lm_results['pred_sentence'])):
+        true_sentence = remove_punctuation(lm_results['true_sentence'][i]).strip()
+        pred_sentence = remove_punctuation(lm_results['pred_sentence'][i]).strip()
+        ed = editdistance.eval(true_sentence.split(), pred_sentence.split())
 
-#         total_true_length += len(true_sentence.split())
-#         total_edit_distance += ed
+        total_true_length += len(true_sentence.split())
+        total_edit_distance += ed
 
-#         lm_results['edit_distance'].append(ed)
-#         lm_results['num_words'].append(len(true_sentence.split()))
+        lm_results['edit_distance'].append(ed)
+        lm_results['num_words'].append(len(true_sentence.split()))
 
-#         # calculate phoneme error rate (PER)
-#         true_phonemes = lm_results['true_phonemes'][i].split()
-#         pred_phonemes = lm_results['pred_phonemes'][i].split()
-#         p_ed = editdistance.eval(true_phonemes, pred_phonemes)
+        # calculate phoneme error rate (PER)
+        true_phonemes = lm_results['true_phonemes'][i].split()
+        pred_phonemes = lm_results['pred_phonemes'][i].split()
+        p_ed = editdistance.eval(true_phonemes, pred_phonemes)
         
-#         if 'p_edit_distance' not in lm_results:
-#             lm_results['p_edit_distance'] = []
-#             lm_results['num_phonemes'] = []
+        if 'p_edit_distance' not in lm_results:
+            lm_results['p_edit_distance'] = []
+            lm_results['num_phonemes'] = []
             
-#         lm_results['p_edit_distance'].append(p_ed)
-#         lm_results['num_phonemes'].append(len(true_phonemes))
+        lm_results['p_edit_distance'].append(p_ed)
+        lm_results['num_phonemes'].append(len(true_phonemes))
 
-#         print(f'{lm_results["session"][i]} - Block {lm_results["block"][i]}, Trial {lm_results["trial"][i]}')
-#         print(f'True phonemes:       {lm_results["true_phonemes"][i]}')
-#         print(f'Pred phonemes:       {lm_results["pred_phonemes"][i]}')
-#         print(f'PER: {p_ed} / {len(true_phonemes)} = {100 * p_ed / max(1, len(true_phonemes)):.2f}%')
-#         print(f'True sentence:       {true_sentence}')
-#         print(f'Predicted sentence:  {pred_sentence}')
-#         print(f'WER: {ed} / {100 * len(true_sentence.split())} = {ed / len(true_sentence.split()):.2f}%')
-#         print()
+        print(f'{lm_results["session"][i]} - Block {lm_results["block"][i]}, Trial {lm_results["trial"][i]}')
+        print(f'True phonemes:       {lm_results["true_phonemes"][i]}')
+        print(f'Pred phonemes:       {lm_results["pred_phonemes"][i]}')
+        print(f'PER: {p_ed} / {len(true_phonemes)} = {100 * p_ed / max(1, len(true_phonemes)):.2f}%')
+        print(f'True sentence:       {true_sentence}')
+        print(f'Predicted sentence:  {pred_sentence}')
+        print(f'WER: {ed} / {100 * len(true_sentence.split())} = {ed / len(true_sentence.split()):.2f}%')
+        print()
 
-#     print(f'Total true sentence length: {total_true_length}')
-#     print(f'Total edit distance: {total_edit_distance}')
-#     print(f'Aggregate Word Error Rate (WER): {100 * total_edit_distance / total_true_length:.2f}%')
+    print(f'Total true sentence length: {total_true_length}')
+    print(f'Total edit distance: {total_edit_distance}')
+    print(f'Aggregate Word Error Rate (WER): {100 * total_edit_distance / total_true_length:.2f}%')
 
 
-# # write predicted sentences to a csv file. put a timestamp in the filename (YYYYMMDD_HHMMSS)
-# # KASIA had to change the path so that it works on Kaggle server
-# timestamp = time.strftime("%Y%m%d_%H%M%S")
-# # output_path = model_path
-# # output_file = os.path.join(model_path, f'baseline_rnn_{eval_type}_predicted_sentences_{timestamp}.csv')
-# if os.path.exists('/kaggle/working'):
-#     output_path = '/kaggle/working'
-# else:
-#     output_path = '.'
-# output_file = os.path.join(output_path, f'baseline_rnn_{eval_type}_predicted_sentences_{timestamp}.csv')
+# write predicted sentences to a csv file. put a timestamp in the filename (YYYYMMDD_HHMMSS)
+# KASIA had to change the path so that it works on Kaggle server
+timestamp = time.strftime("%Y%m%d_%H%M%S")
+# output_path = model_path
+# output_file = os.path.join(model_path, f'baseline_rnn_{eval_type}_predicted_sentences_{timestamp}.csv')
+if os.path.exists('/kaggle/working'):
+    output_path = '/kaggle/working'
+else:
+    output_path = '.'
+output_file = os.path.join(output_path, f'baseline_rnn_{eval_type}_predicted_sentences_{timestamp}.csv')
 
-# ids = [i for i in range(len(lm_results['pred_sentence']))]
-# df_out = pd.DataFrame({'id': ids, 'text': lm_results['pred_sentence']})
-# df_out.to_csv(output_file, index=False)
-# print(f'Saved submission file to {output_file}')
+ids = [i for i in range(len(lm_results['pred_sentence']))]
+df_out = pd.DataFrame({'id': ids, 'text': lm_results['pred_sentence']})
+df_out.to_csv(output_file, index=False)
+print(f'Saved submission file to {output_file}')
 
 # save detailed results to a separate csv file
 # KASIA had to change the path so that it works on Kaggle server
 #detailed_output_file = os.path.join(model_path, f'detailed_results_{eval_type}_{timestamp}.csv')
-# detailed_output_file = os.path.join(output_path, f'detailed_results_{eval_type}_{timestamp}.csv')
-# df_detailed = pd.DataFrame(lm_results)
-# df_detailed.to_csv(detailed_output_file, index=False)
-# print(f'Saved detailed results to {detailed_output_file}')
+detailed_output_file = os.path.join(output_path, f'detailed_results_{eval_type}_{timestamp}.csv')
+df_detailed = pd.DataFrame(lm_results)
+df_detailed.to_csv(detailed_output_file, index=False)
+print(f'Saved detailed results to {detailed_output_file}')
 
 # if using the validation set, lets calculate WER per corpus and per session
-# if eval_type == 'val':
-#     print("\n--- Performance Summary by Session ---")
-#     sessions = sorted(list(set(lm_results['session'])))
-#     for s in sessions:
-#         s_indices = [i for i, x in enumerate(lm_results['session']) if x == s]
-#         s_ed = sum([lm_results['edit_distance'][i] for i in s_indices])
-#         s_words = sum([lm_results['num_words'][i] for i in s_indices])
-#         s_p_ed = sum([lm_results['p_edit_distance'][i] for i in s_indices])
-#         s_phonemes = sum([lm_results['num_phonemes'][i] for i in s_indices])
-#         print(f'Session {s}:')
-#         print(f'  WER {100 * s_ed / max(1, s_words):.2f}% ({s_ed}/{s_words} words)')
-#         print(f'  PER {100 * s_p_ed / max(1, s_phonemes):.2f}% ({s_p_ed}/{s_phonemes} phonemes)')
+if eval_type == 'val':
+    print("\n--- Performance Summary by Session ---")
+    sessions = sorted(list(set(lm_results['session'])))
+    for s in sessions:
+        s_indices = [i for i, x in enumerate(lm_results['session']) if x == s]
+        s_ed = sum([lm_results['edit_distance'][i] for i in s_indices])
+        s_words = sum([lm_results['num_words'][i] for i in s_indices])
+        s_p_ed = sum([lm_results['p_edit_distance'][i] for i in s_indices])
+        s_phonemes = sum([lm_results['num_phonemes'][i] for i in s_indices])
+        print(f'Session {s}:')
+        print(f'  WER {100 * s_ed / max(1, s_words):.2f}% ({s_ed}/{s_words} words)')
+        print(f'  PER {100 * s_p_ed / max(1, s_phonemes):.2f}% ({s_p_ed}/{s_phonemes} phonemes)')
 
-#     print("\n--- Performance Summary by Corpus ---")
-#     corpora = sorted(list(set(lm_results['corpus'])))
-#     for c in corpora:
-#         c_indices = [i for i, x in enumerate(lm_results['corpus']) if x == c]
-#         c_ed = sum([lm_results['edit_distance'][i] for i in c_indices])
-#         c_words = sum([lm_results['num_words'][i] for i in c_indices])
-#         c_p_ed = sum([lm_results['p_edit_distance'][i] for i in c_indices])
-#         c_phonemes = sum([lm_results['num_phonemes'][i] for i in c_indices])
-#         print(f'Corpus {c}:')
-#         print(f'  WER {100 * c_ed / max(1, c_words):.2f}% ({c_ed}/{c_words} words)')
-#         print(f'  PER {100 * c_p_ed / max(1, c_phonemes):.2f}% ({c_p_ed}/{c_phonemes} phonemes)')
-
-# ===== SAVE ACOUSTIC OUTPUTS FOR OFFLINE LM =====
-import pickle
-
-output_path = "/kaggle/working/acoustic_outputs"
-os.makedirs(output_path, exist_ok=True)
-
-save_dict = {}
-
-for session, data in test_data.items():
-    save_dict[session] = {
-        "logits": [l.cpu().numpy() if torch.is_tensor(l) else l for l in data["logits"]],
-        "pred_seq": data["pred_seq"],
-        "block_num": data["block_num"],
-        "trial_num": data["trial_num"],
-        "sentence_label": data.get("sentence_label"),
-        "seq_len": data.get("seq_len"),
-        "seq_class_ids": data.get("seq_class_ids"),
-    }
-
-with open(os.path.join(output_path, "acoustic_outputs.pkl"), "wb") as f:
-    pickle.dump(save_dict, f)
-
-print("✅ Saved acoustic outputs to /kaggle/working/acoustic_outputs/acoustic_outputs.pkl")
+    print("\n--- Performance Summary by Corpus ---")
+    corpora = sorted(list(set(lm_results['corpus'])))
+    for c in corpora:
+        c_indices = [i for i, x in enumerate(lm_results['corpus']) if x == c]
+        c_ed = sum([lm_results['edit_distance'][i] for i in c_indices])
+        c_words = sum([lm_results['num_words'][i] for i in c_indices])
+        c_p_ed = sum([lm_results['p_edit_distance'][i] for i in c_indices])
+        c_phonemes = sum([lm_results['num_phonemes'][i] for i in c_indices])
+        print(f'Corpus {c}:')
+        print(f'  WER {100 * c_ed / max(1, c_words):.2f}% ({c_ed}/{c_words} words)')
+        print(f'  PER {100 * c_p_ed / max(1, c_phonemes):.2f}% ({c_p_ed}/{c_phonemes} phonemes)')
