@@ -75,20 +75,46 @@ model = BrainToTextTransformer(
 
 model.to(device)
 
+# ckpt_dir = os.path.join(
+#     model_path,
+#     "checkpoint",
+#     "best_checkpoint"
+# )
+
+# state = {}
+
+# dcp_load(
+#     state_dict=state,
+#     storage_reader=FileSystemReader(ckpt_dir),
+# )
+
+# model.load_state_dict(state["model"])
+
+import pickle
+
 ckpt_dir = os.path.join(
     model_path,
     "checkpoint",
     "best_checkpoint"
 )
 
-state = {}
+with open(os.path.join(ckpt_dir, "data.pkl"), "rb") as f:
+    state = pickle.load(f)
 
-dcp_load(
-    state_dict=state,
-    storage_reader=FileSystemReader(ckpt_dir),
-)
+# state is a dict with keys like:
+#  - "model"
+#  - "optimizer"
+#  - etc.
 
-model.load_state_dict(state["model"])
+state_dict = state["model"]
+
+# Clean possible prefixes
+clean_state = {}
+for k, v in state_dict.items():
+    k = k.replace("module.", "").replace("_orig_mod.", "")
+    clean_state[k] = v
+
+model.load_state_dict(clean_state)
 
 # model = GRUDecoder(
 #     neural_dim = model_args['model']['n_input_features'],
