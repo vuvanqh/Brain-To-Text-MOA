@@ -12,8 +12,8 @@ import argparse
 from transformer_model import BrainToTextTransformer
 from evaluate_model_helpers import *
 
-from torch.distributed._shard.checkpoint import load as dcp_load
-from torch.distributed._shard.checkpoint import FileSystemReader
+# from torch.distributed._shard.checkpoint import load as dcp_load
+# from torch.distributed._shard.checkpoint import FileSystemReader
 
 
 
@@ -92,14 +92,14 @@ model.to(device)
 checkpoint_path = os.path.join(
     model_path,
     "checkpoint",
-    "best_checkpoint",
-    "model.pt"  # or checkpoint.pt — see below
+    "model.pt"
 )
 
 checkpoint = torch.load(checkpoint_path, map_location=device)
 
-# Handle common formats
-if "model" in checkpoint:
+if "model_state_dict" in checkpoint:
+    model.load_state_dict(checkpoint["model_state_dict"])
+elif "model" in checkpoint:
     model.load_state_dict(checkpoint["model"])
 elif "state_dict" in checkpoint:
     model.load_state_dict(checkpoint["state_dict"])
@@ -125,9 +125,6 @@ else:
 #     checkpoint['model_state_dict'][key.replace("module.", "")] = checkpoint['model_state_dict'].pop(key)
 #     checkpoint['model_state_dict'][key.replace("_orig_mod.", "")] = checkpoint['model_state_dict'].pop(key)
 # model.load_state_dict(checkpoint['model_state_dict'])  
-
-# add model to device
-model.to(device) 
 
 # set model to eval mode
 model.eval()
