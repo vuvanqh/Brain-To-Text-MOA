@@ -97,14 +97,25 @@ checkpoint_path = os.path.join(
 
 checkpoint = torch.load(checkpoint_path, map_location=device)
 
+# ---- FIX torch.compile() prefix ----
 if "model_state_dict" in checkpoint:
-    model.load_state_dict(checkpoint["model_state_dict"])
+    state_dict = checkpoint["model_state_dict"]
 elif "model" in checkpoint:
-    model.load_state_dict(checkpoint["model"])
+    state_dict = checkpoint["model"]
 elif "state_dict" in checkpoint:
-    model.load_state_dict(checkpoint["state_dict"])
+    state_dict = checkpoint["state_dict"]
 else:
-    model.load_state_dict(checkpoint)
+    state_dict = checkpoint
+
+# Remove "_orig_mod." prefix added by torch.compile
+new_state_dict = {}
+for k, v in state_dict.items():
+    if k.startswith("_orig_mod."):
+        new_state_dict[k.replace("_orig_mod.", "")] = v
+    else:
+        new_state_dict[k] = v
+
+model.load_state_dict(new_state_dict)
 # model = GRUDecoder(
 #     neural_dim = model_args['model']['n_input_features'],
 #     n_units = model_args['model']['n_units'], 
