@@ -465,20 +465,22 @@ class BrainToTextDecoder_Trainer:
         '''
 
         checkpoint = {
-            'model_state_dict' : self.model.state_dict(),
-            'optimizer_state_dict' : self.optimizer.state_dict(),
-            'scheduler_state_dict' : self.learning_rate_scheduler.state_dict(),
-            'val_PER' : PER,
-            'val_loss' : loss
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'scheduler_state_dict': self.learning_rate_scheduler.state_dict(),
+            'val_PER': PER,
+            'val_loss': loss,
         }
-        
-        torch.save(checkpoint, save_path)
-        
-        self.logger.info("Saved model to checkpoint: " + save_path)
 
-        # Save the args file alongside the checkpoint
-        with open(os.path.join(self.args['checkpoint_dir'], 'args.yaml'), 'w') as f:
-            OmegaConf.save(config=self.args, f=f)
+        torch.save(checkpoint, save_path)
+        self.logger.info(f"Saved training checkpoint to {save_path}")
+
+        # ---------- SINGLE-FILE INFERENCE MODEL ----------
+        inference_path = os.path.join(self.args['checkpoint_dir'], "model.pt")
+
+        torch.save(self.model.state_dict(), inference_path)
+
+        self.logger.info(f"✅ Saved SINGLE-FILE inference model to {inference_path}")
 
     def create_attention_mask(self, sequence_lengths):
 

@@ -75,21 +75,36 @@ model = BrainToTextTransformer(
 
 model.to(device)
 
-ckpt_dir = os.path.join(
+# ckpt_dir = os.path.join(
+#     model_path,
+#     "checkpoint",
+#     "best_checkpoint"
+# )
+
+# state = {}
+
+# dcp_load(
+#     state_dict=state,
+#     storage_reader=FileSystemReader(ckpt_dir),
+# )
+
+# model.load_state_dict(state["model"])
+checkpoint_path = os.path.join(
     model_path,
     "checkpoint",
-    "best_checkpoint"
+    "best_checkpoint",
+    "model.pt"  # or checkpoint.pt — see below
 )
 
-state = {}
+checkpoint = torch.load(checkpoint_path, map_location=device)
 
-dcp_load(
-    state_dict=state,
-    storage_reader=FileSystemReader(ckpt_dir),
-)
-
-model.load_state_dict(state["model"])
-
+# Handle common formats
+if "model" in checkpoint:
+    model.load_state_dict(checkpoint["model"])
+elif "state_dict" in checkpoint:
+    model.load_state_dict(checkpoint["state_dict"])
+else:
+    model.load_state_dict(checkpoint)
 # model = GRUDecoder(
 #     neural_dim = model_args['model']['n_input_features'],
 #     n_units = model_args['model']['n_units'], 
