@@ -2,10 +2,7 @@ import torch
 import torch.nn as nn
 
 class BrainToTextTransformer(nn.Module):
-    def __init__(
-        self,
-        input_dim,
-        vocab_size,
+    def __init__(self, input_dim, vocab_size,
         d_model=256,
         nhead=8,
         num_layers=4,
